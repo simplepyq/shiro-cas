@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xmlns:context="http://www.springframework.org/schema/context"
+	   xmlns:aop="http://www.springframework.org/schema/aop"
+	   xsi:schemaLocation="http://www.springframework.org/schema/beans
+						   http://www.springframework.org/schema/beans/spring-beans.xsd
+						   http://www.springframework.org/schema/context
+						   http://www.springframework.org/schema/context/spring-context.xsd
+						   http://www.springframework.org/schema/aop
+						   http://www.springframework.org/schema/aop/spring-aop.xsd">
+	<context:property-placeholder location="classpath:shiro.properties"/>
+	<!--CasFilter-->
+	<bean id="casFilter" class="org.apache.shiro.cas.CasFilter">
+		<property name="failureUrl" value="${shiro.failureUrl}" />
+	</bean>
+	<!--SuccessFilter-->
+	<bean id="successFilter" class="cn.pyq.filter.SuccessFilter"/>
+	<!--自定义Realm-->
+	<bean id="myCasRealm" class="cn.pyq.realms.MyCasRealm">
+		<property name="defaultRoles" value="ROLE_USER"/>
+		<!-- cas服务端地址前缀 -->
+		<property name="casServerUrlPrefix" value="${shiro.casServerUrlPrefix}" />
+		<!-- 应用服务地址，用来接收cas服务端票据 -->
+		<!-- 客户端的回调地址设置，必须和上面的shiro-cas过滤器casFilter拦截的地址一致 -->
+		<property name="casService" value="${shiro.casService}" />
+	</bean>
+	<!--安全管理器-->
+	<bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+		<property name="realm" ref="myCasRealm"/>
+	</bean>
+	<bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+		<property name="securityManager" ref="securityManager"/>
+		<property name="loginUrl" value="${shiro.loginUrl}"/>
+		<property name="successUrl" value="${shiro.successUrl}"/>
+		<!-- 用户访问未对其授权的资源时,所显示的连接 -->
+		<property name="unauthorizedUrl" value="/no-permission.jsp"/>
+		<property name="filters">
+			<map>
+				<entry key="casFilter" value-ref="casFilter"/>
+				<entry key="authc" value-ref="successFilter"/>
+			</map>
+		</property>
+		<property name="filterChainDefinitions">
+			<value>
+				/shiro-cas = casFilter
+				/static/**=anon
+				/**=authc
+			</value>
+		</property>
+	</bean>
+
+	<aop:config proxy-target-class="true"/>
+	<bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+		<property name="securityManager" ref="securityManager"/>
+	</bean>
+</beans>
